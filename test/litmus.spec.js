@@ -1,31 +1,15 @@
 import test from 'ava'
-import app from '../server'
 import request from 'supertest'
 import User from '../models/User'
-import mongoose from '../handlers/mongoose'
-import MongodbMemoryServer from 'mongodb-memory-server'
 
-const mongod = new MongodbMemoryServer()
+import {before, beforeEach, afterEach, after} from './utils'
 
-test.before(async t => {
-  mongoose.connect(await mongod.getConnectionString())
-})
+test.before(before)
+test.beforeEach(beforeEach)
+test.afterEach.always(afterEach)
 
-test.beforeEach(async t => {
-  const user = new User({email: 'one@example.com', name: 'One'})
-  const user2 = new User({email: 'two@example.com', name: 'Two'})
-  const user3 = new User({email: 'three@example.com', name: 'Three'})
-  await user.save()
-  await user2.save()
-  await user3.save()
-  t.context.app = app
-})
-
-test.afterEach.always(async t => {
-  await User.remove()
-})
-
-test('litmus get test', async t => {
+// First test
+test.serial('litmus get user', async t => {
   const { app } = t.context
   const res = await request(app)
     .get('/litmus')
@@ -34,21 +18,24 @@ test('litmus get test', async t => {
   t.is(res.body.name, 'One')
 })
 
-// Works if we use test.serial instead of test
-test('litmus post test', async t => {
+// Second test
+// Note: subsequent tests must be serial tests.
+// It is NOT RECOMMENDED to run parallel tests within an AVA test file when using Mongoose
+test.serial('litmus create user', async t => {
   const { app } = t.context
   const res = await request(app)
     .post('/litmus')
     .send({
       email: 'new@example.com',
-      name: 'New'
+      name: 'New name'
     })
+
   t.is(res.status, 200)
-  t.is(res.body.name, 'New')
-  t.is(200, 200)
+  t.is(res.body.name, 'New name')
+
+  // Verifies that user is created in DB
+  const newUser = await User.findOne({email: 'new@example.com'})
+  t.is(newUser.name, 'New name')
 })
 
-test.after.always(async t => {
-  mongoose.disconnect()
-  mongod.stop()
-})
+test.after.always(after)

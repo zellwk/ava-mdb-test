@@ -7,7 +7,10 @@
     "watch": "ava --watch"
   },
   "ava": {
-    "files": ["test/**/*"],
+    "files": [
+      "test/**/*",
+      "!test/utils.js"
+    ],
     "require": [
       "babel-register",
       "babel-polyfill"
